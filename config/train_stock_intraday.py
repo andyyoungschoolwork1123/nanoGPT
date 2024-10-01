@@ -15,7 +15,7 @@ wandb_run_name = 'mini-gpt'
 
 dataset = 'clean//IBM'
 gradient_accumulation_steps = 1
-batch_size = 64
+batch_size = 32
 block_size = 1024 
 
 n_layer = 4
