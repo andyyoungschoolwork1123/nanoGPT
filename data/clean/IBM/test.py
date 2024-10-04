@@ -1,13 +1,11 @@
 import os
 import numpy as np
 import pandas as pd
-import dask.dataframe as dd
 import tiktoken
+from tqdm import tqdm  # Import tqdm for progress bar
+
 # Specify the folder containing the CSV files
 CSV_FOLDER = 'C:\\Users\\catop\\Documents\\GitHub\\nanoGPT\\data\\clean\\IBM'
-
-
-
 
 TRAIN_RATIO = 0.8  # 80% of the data will be used for training, 20% for validation
 
@@ -23,20 +21,19 @@ def load_and_concatenate_csvs(folder_path):
     # List to store dataframes for concatenation
     all_dataframes = []
 
-    # Loop through CSV files and load them into dataframes
-    for file in csv_files:
+    # Loop through CSV files and load them into dataframes, with a progress bar
+    for file in tqdm(csv_files, desc="Loading CSV files"):
         df = pd.read_csv(file, header=0)
         
         df.columns = df.columns.str.lower()  # Convert all column names to lowercase for consistency
         rename_mapping = {
             'date': 'date',
             'timestamp': 'date',  # Assuming some files use 'timestamp' instead of 'date'
-            'data': 'close',  # Assuming some files use 'close_price' instead of 'close'
+            'close_price': 'close',  # Assuming some files use 'close_price' instead of 'close'
         }
         
         # Rename columns to standard names if they exist in the dataframe
         df.rename(columns=rename_mapping, inplace=True)
-        
         
         all_dataframes.append(df)
     
@@ -51,35 +48,45 @@ def load_and_concatenate_csvs(folder_path):
     
     return sorted_data
 
-
-def process_date_and_price_to_tokens(df):
+def process_all_to_tokens(df):
     # Initialize the tokenizer
     tokenizer = tiktoken.get_encoding("gpt2")
 
-    # Extract date and convert to string format
-    dates = df['date'].astype(str)
-    # Tokenize dates
-    date_tokens = dates.apply(lambda x: tokenizer.encode(x))
+    # Add progress bars for tokenizing the columns
+    tqdm.pandas(desc="Tokenizing date")
+    df['date_tokens'] = df['date'].astype(str).progress_apply(lambda x: tokenizer.encode(x))
 
-    # Extract stock prices and convert them to string
-    prices = df['close'].astype(str)
-    # Tokenize prices
-    price_tokens = prices.apply(lambda x: tokenizer.encode(x))
+    tqdm.pandas(desc="Tokenizing price")
+    df['price_tokens'] = df['close'].astype(str).progress_apply(lambda x: tokenizer.encode(x))
 
-    # Flatten the list of tokens for both dates and prices into a single list of tokens
+    if 'symbol' in df.columns:
+        tqdm.pandas(desc="Tokenizing symbol")
+        df['symbol_tokens'] = df['symbol'].astype(str).progress_apply(lambda x: tokenizer.encode(x))
+
+    # Combine all tokens into a single list for each row
+    def combine_tokens(row):
+        combined_tokens = row['date_tokens']
+        combined_tokens += tokenizer.encode(',')
+        combined_tokens += row['price_tokens']
+        combined_tokens += tokenizer.encode(',')
+        if 'symbol_tokens' in row:
+            combined_tokens += row['symbol_tokens']
+        combined_tokens += tokenizer.encode('\n')
+        return combined_tokens
+
+    tqdm.pandas(desc="Combining tokens")
+    df['combined_tokens'] = df.progress_apply(combine_tokens, axis=1)
+
+    # Flatten the token lists into a single list
     all_tokens = []
-    for date, price in zip(date_tokens, price_tokens):
-        all_tokens.extend(date)  # Add date tokens
-        all_tokens.extend(tokenizer.encode(','))  # Add a separator between date and price (e.g., comma)
-        all_tokens.extend(price)  # Add price tokens
-        all_tokens.extend(tokenizer.encode('\n'))  # Add a newline token after each entry
+    for tokens in tqdm(df['combined_tokens'], desc="Flattening tokens"):
+        all_tokens.extend(tokens)
 
-    return np.array(all_tokens, dtype=np.uint16)  # Use uint16 to support larger token values
-
+    return np.array(all_tokens, dtype=np.uint16)
 
 def main():
     data = load_and_concatenate_csvs(CSV_FOLDER)
-    tokens = process_date_and_price_to_tokens(data)
+    tokens = process_all_to_tokens(data)
     train_size = int(len(tokens) * TRAIN_RATIO)
     train_tokens = tokens[:train_size]
     val_tokens = tokens[train_size:]
@@ -90,5 +97,6 @@ def main():
 
     print(f"Data preparation completed. Train size: {len(train_tokens)}, Validation size: {len(val_tokens)}")
 
-
 main()
+
+
