@@ -1,3 +1,4 @@
+# Function to load and concatenate CSVs
 # Import necessary libraries
 import pandas as pd
 import numpy as np
@@ -8,7 +9,7 @@ from tstok.tokenizer import Tokenizer  # Import Tokenizer class from tokenizer.p
 import torch
 
 # Load the CSV file
-csv_file_path = 'C:\\Users\\catop\\Documents\\GitHub\\nanoGPT\\data\\clean\\IBM'
+csv_file_path = 'C:\\Users\\catop\\Documents\\GitHub\\nanoGPT\\data\\clean'
 
 
 def load_and_concatenate_csvs(folder_path):
@@ -45,7 +46,7 @@ def load_and_concatenate_csvs(folder_path):
     sorted_data = all_data.sort_values(by='date')
 
     # Save the sorted data to 'alldata.csv'
-    sorted_data.to_csv(os.path.join(os.path.dirname(__file__), 'alldata.csv'), index=False)
+    sorted_data.to_csv(os.path.join(os.getcwd(), 'alldata.csv'), index=False)
     
     return sorted_data
 
@@ -209,7 +210,7 @@ import tstok.configurations
 cfg = generic.Config(config = tstok.configurations.all_config)
 tokenizer = Tokenizer(cfg.data)
 
-csv_path = "data\\clean\\IBM\\alldata.csv"
+csv_path = "data\\clean\\alldata.csv"
 dataset = prepare_data(csv_path, tokenizer, cfg)
 
 tokenized_data = dataset.get_all_tokens(split='train')
@@ -221,7 +222,3 @@ train_bin_path = os.path.join(os.getcwd(), 'train.bin')
 write_tokens_to_bin(tokenized_data, train_bin_path)
     
 print(f"Tokenized data written to {train_bin_path}")
-
-
-
-

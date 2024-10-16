@@ -90,15 +90,7 @@ def get_custom_dataset(base_path, data_name, tokenizer, cfg):
     # tokenizer: tokenizer object
     # max_seq_len: maximum length of the sequence
     data_name_mapping = {
-        'weather': 'weather/weather.csv',
-        'electricity': 'electricity/electricity.csv',
-        'exchange_rate': 'exchange_rate/exchange_rate.csv',
-        'traffic': 'traffic/traffic.csv',
-        'illness': 'illness/national_illness.csv',
-        'ettm1': 'ETT-small/ETTm1.csv',
-        'ettm2': 'ETT-small/ETTm2.csv',
-        'etth1': 'ETT-small/ETTh1.csv',
-        'etth2': 'ETT-small/ETTh2.csv'
+        "all_data" : 'alldata.csv'
     }
     file = os.path.join(base_path, data_name_mapping[data_name])
     df = pd.read_csv(file)

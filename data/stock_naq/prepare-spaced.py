@@ -1,16 +1,19 @@
-# Import necessary libraries
-import pandas as pd
-import numpy as np
+# saves the openwebtext dataset to a binary file for training. following was helpful:
+# https://github.com/HazyResearch/flash-attention/blob/main/training/src/datamodules/language_modeling_hf.py
+
 import os
-from tqdm import tqdm 
-from tstok import generic  # Import Config class from generic.py
-from tstok.tokenizer import Tokenizer  # Import Tokenizer class from tokenizer.py
+from tqdm import tqdm
+import numpy as np
+import tiktoken
+import pandas as pd
+from datasets import load_dataset
 import torch
-
-# Load the CSV file
-csv_file_path = 'C:\\Users\\catop\\Documents\\GitHub\\nanoGPT\\data\\clean\\IBM'
+ #CSV_FOLDER = 'C:/Users/catop/Documents/GitHub/nanoGPT/data/stock_dat/clean'
 
 
+TRAIN_RATIO = 0.8  # 80% of the data will be used for training, 20% for validation
+
+# Define the function to load all CSVs and concatenate them into a single DataFrame
 def load_and_concatenate_csvs(folder_path):
     # Get a list of all CSV files in the directory and its subdirectories
     csv_files = [
@@ -22,19 +25,21 @@ def load_and_concatenate_csvs(folder_path):
     # List to store dataframes for concatenation
     all_dataframes = []
 
-    # Loop through CSV files and load them into dataframes, with a progress bar
-    for file in tqdm(csv_files, desc="Loading CSV files"):
+    # Loop through CSV files and load them into dataframes
+    for file in csv_files:
         df = pd.read_csv(file, header=0)
         
         df.columns = df.columns.str.lower()  # Convert all column names to lowercase for consistency
         rename_mapping = {
-            'date': 'date',
-            'timestamp': 'date',  # Assuming some files use 'timestamp' instead of 'date'
-            'close_price': 'close',  # Assuming some files use 'close_price' instead of 'close'
+            'd a t a': 'date',
+            'c l o s e': 'close',  # Assuming some files use 'timestamp' instead of 'date'
+            'd a t e': 'date',
+            "t i m e s t a m p" : 'date'# Assuming some files use 'close_price' instead of 'close'
         }
         
         # Rename columns to standard names if they exist in the dataframe
         df.rename(columns=rename_mapping, inplace=True)
+        
         
         all_dataframes.append(df)
     
@@ -42,12 +47,10 @@ def load_and_concatenate_csvs(folder_path):
     all_data = pd.concat(all_dataframes, ignore_index=True)
     
     # Sort the data by the 'date' column
-    sorted_data = all_data.sort_values(by='date')
 
     # Save the sorted data to 'alldata.csv'
-    sorted_data.to_csv(os.path.join(os.path.dirname(__file__), 'alldata.csv'), index=False)
-    
-    return sorted_data
+    all_data.to_csv('alldata-spaced.csv', index=False)
+    return all_data
 
 class CustomDataset:
     '''Custom dataset for time-series data.'''
@@ -70,12 +73,18 @@ class CustomDataset:
 
     def _get_sample(self, split):
         if split == 'train':
-            # randomly select a series
-            series_ix = np.random.randint(len(self.tr_series))
-            # randomly select a subsequence
+            while True:  # Retry until a valid series is found
+                series_ix = np.random.randint(len(self.tr_series))
+                if self.tr_lengths[series_ix] > self.max_seq_len:
+                    break
+            
             ts_start_ix = np.random.randint(0, self.tr_lengths[series_ix] - self.max_seq_len)
         else:
-            series_ix = np.random.randint(len(self.val_series))
+            while True:  # Retry until a valid series is found
+                series_ix = np.random.randint(len(self.val_series))
+                if self.val_lengths[series_ix] > self.max_seq_len:
+                    break
+            
             ts_start_ix = np.random.randint(0, self.val_lengths[series_ix] - self.max_seq_len)
 
         sequence = self.series[series_ix][ts_start_ix:ts_start_ix+self.max_seq_len+1]
@@ -155,12 +164,21 @@ def prepare_data(csv_path, tokenizer, cfg):
     df = pd.read_csv(csv_path)
 
     # Select relevant columns for time-series analysis
-    columns_to_use = ['date','data','symbol']
+    columns_to_use = ['date', 'close']
+
+    # Convert 'close' column to numeric (if needed)
+    df['close'] = pd.to_numeric(df['close'], errors='coerce')  # Convert 'close' column to float, set invalid parsing as NaN
+    
+    # Drop any rows with NaN values after conversion
+    df.dropna(subset=['close'], inplace=True)
+
+    # Convert the relevant columns into numpy arrays
     series = [df[col].values for col in columns_to_use]
 
     # Create and return the dataset
     dataset = CustomDataset(series, tokenizer, cfg)
     return dataset
+
 
 def write_tokens_to_bin(tokenized_data, file_path):
     '''
@@ -205,11 +223,13 @@ training_config = {
     "compile": False
 }
 import tstok.configurations
+import tstok.generic as generic
+from tstok.tokenizer import Tokenizer
 # Assume a generic Config class and Tokenizer class are defined elsewhere
 cfg = generic.Config(config = tstok.configurations.all_config)
 tokenizer = Tokenizer(cfg.data)
 
-csv_path = "data\\clean\\IBM\\alldata.csv"
+csv_path = "data\\stock_naq\\alldata.csv"
 dataset = prepare_data(csv_path, tokenizer, cfg)
 
 tokenized_data = dataset.get_all_tokens(split='train')
@@ -221,7 +241,4 @@ train_bin_path = os.path.join(os.getcwd(), 'train.bin')
 write_tokens_to_bin(tokenized_data, train_bin_path)
     
 print(f"Tokenized data written to {train_bin_path}")
-
-
-
-
+    

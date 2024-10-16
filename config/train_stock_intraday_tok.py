@@ -1,7 +1,7 @@
 # train a miniature character-level shakespeare model
 # good for debugging and playing on macbooks and such
 
-out_dir = 'out-stock-intraday-all'
+out_dir = 'out-stock-intraday-tok'
 eval_interval = 1000 # keep frequent because we'll overfit
 eval_iters = 10
 log_interval = 10 # don't print too too often

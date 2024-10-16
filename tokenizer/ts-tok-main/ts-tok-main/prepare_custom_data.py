@@ -46,13 +46,13 @@ def get_stacked_sequences(files, tokenizer, cfg):
         df = pd.read_csv(file)
 
         abort_flag1 = len(df) < (cfg.max_seq_len+1)
-        abort_flag2 = df.value.nunique() == 1
+        abort_flag2 = df.values.ndim == 1
         if abort_flag1 or abort_flag2:
             continue;
 
-        df = df.sort_values('timestamp')
+        df = df.sort_values('date')
         df = df.reset_index(drop=True)
-        seq = subsequence(df.value.values, cfg.max_seq_len+1)
+        seq = subsequence(df.values, cfg.max_seq_len+1)
         
         X_ids, Y_ids = norm_and_tokenize(seq, tokenizer)
 
@@ -68,8 +68,7 @@ def get_stacked_sequences(files, tokenizer, cfg):
 
 
 def do_stuff(args):
-    if not os.path.exists(args.out_path):
-        os.makedirs(args.out_path)
+   
     out_path = Path(args.out_path)
     
     # setup tokenizer
@@ -105,28 +104,18 @@ def do_stuff(args):
 
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--base_path", type=str)
-    parser.add_argument("--out_path", type=str)
-    parser.add_argument("--train_ratio", type=float, default=0.95)
-    parser.add_argument("--bin_size", type=float, default=0.005)
-    parser.add_argument("--max_seq_len", type=int, default=512)
-    args = parser.parse_args()
-
-    do_stuff(args)
 
 
 
-'''
-args = {'base_path': "/Users/arpitanshulnu/Documents/checkout/arpytanshu/gpt-ts-data/*/*.csv",
-        'out_path': "processed_data",
+
+args = {'base_path': "alldata.csv",
+        'out_path': "tokenizer\\ts-tok-main\\ts-tok-main\\out-tozenied",
         'train_ratio': 0.95,
         'bin_size': 0.005,
         'max_seq_len': 256,
-        'out_path': "test"}
+        'out_path': "tokenizer\\ts-tok-main\\ts-tok-main\\out-tozenied"}
 args = Config(config=args)
-# do_stuff(args)
+do_stuff(args)
 
-python prepare_custom_data.py --base_path "/Users/arpitanshulnu/Documents/checkout/arpytanshu/gpt-ts-data/*/*.csv" --out_path ./processed_data --train_ratio 0.95
-'''
+#python prepare_custom_data.py --base_path "/Users/arpitanshulnu/Documents/checkout/arpytanshu/gpt-ts-data/*/*.csv" --out_path ./processed_data --train_ratio 0.95
+
