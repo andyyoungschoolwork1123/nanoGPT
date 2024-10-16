@@ -59,7 +59,7 @@ def process_all_to_tokens(csv):
 
 def main():
     
-    tokens = process_all_to_tokens("C:\\Users\\catop\\Documents\\GitHub\\nanoGPT\\alldata.csv")
+    tokens = process_all_to_tokens("alldata.csv")
     train_size = int(len(tokens) * TRAIN_RATIO)
     train_tokens = tokens[:train_size]
     val_tokens = tokens[train_size:]
